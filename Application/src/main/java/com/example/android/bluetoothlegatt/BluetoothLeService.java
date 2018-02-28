@@ -281,6 +281,7 @@ public class BluetoothLeService extends Service {
         }
     }
 
+
     public class LocalBinder extends Binder {
         BluetoothLeService getService() {
             return BluetoothLeService.this;
@@ -461,6 +462,8 @@ public class BluetoothLeService extends Service {
                 mGattCharacteristics.add(gattCharacteristic);
             }
         }
+
+        // initialize the GATT services
         return gattServices;
     }
 

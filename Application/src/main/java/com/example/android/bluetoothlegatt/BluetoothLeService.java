@@ -103,7 +103,11 @@ public class BluetoothLeService extends Service {
             UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT);
 
     public final static UUID CHARACTERISTIC_DE0GEE_MOTION_SENSOR =
-            UUID.fromString(SampleGattAttributes.CHARACTERISTIC_DE0GEE_MOTION_SENSOR);
+            UUID.fromString("15e438b8-558e-4b1f-992f-23f90a8c129b");
+    public final static UUID CHARACTERISTIC_DE0GEE_BATTERY =
+            UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb");
+
+    private Map<UUID,Integer> characteristicCurrentValues = new HashMap<UUID,Integer>();
 
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
@@ -191,11 +195,25 @@ public class BluetoothLeService extends Service {
         } else if (CHARACTERISTIC_DE0GEE_MOTION_SENSOR.equals(characteristic.getUuid())) {
             int format = BluetoothGattCharacteristic.FORMAT_UINT16;
             final int motionSensor = characteristic.getIntValue(format, 0);
-//            Log.d(TAG, String.format("Received motion sensor: %d", motionSensor));
-            sendData("5",motionSensor);
-
-            intent.putExtra(EXTRA_DATA, String.valueOf(motionSensor));
-        } else {
+            int lastSensor = -1;
+            try {
+                lastSensor = characteristicCurrentValues.get(CHARACTERISTIC_DE0GEE_MOTION_SENSOR).intValue();
+            } catch (Exception e) {
+                lastSensor = -1;
+                // do nothing
+            }
+            if (motionSensor == lastSensor) {
+                Log.d(TAG,"same value, passing");
+            } else {
+                characteristicCurrentValues.put(CHARACTERISTIC_DE0GEE_MOTION_SENSOR, motionSensor);
+                sendData("2",motionSensor);
+                intent.putExtra(EXTRA_DATA, String.valueOf(motionSensor));
+            }
+        } else if (CHARACTERISTIC_DE0GEE_BATTERY.equals(characteristic.getUuid())) {
+            int format = BluetoothGattCharacteristic.FORMAT_UINT8;
+            final int motionSensor = characteristic.getIntValue(format, 0);
+            sendData("1",motionSensor);
+        }else{
             // For all other profiles, writes the data formatted in HEX.
             final byte[] data = characteristic.getValue();
             if (data != null && data.length > 0) {
@@ -458,10 +476,18 @@ public class BluetoothLeService extends Service {
         @Override
         public void run() {
             count = count + 1;
+            UUID checkCharacteristic = CHARACTERISTIC_DE0GEE_MOTION_SENSOR;
+            if (count % 100 == 0) {
+                checkCharacteristic = CHARACTERISTIC_DE0GEE_BATTERY;
+            } else {
+                checkCharacteristic = CHARACTERISTIC_DE0GEE_MOTION_SENSOR;
+            }
+            // get the specified data
             for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
-                if (CHARACTERISTIC_DE0GEE_MOTION_SENSOR.equals(gattCharacteristic.getUuid())) {
+                if (checkCharacteristic.equals(gattCharacteristic.getUuid())) {
                     try {
                         mBluetoothGatt.readCharacteristic(gattCharacteristic);
+                        break;
                     } catch (Exception e) {
                         timer.cancel();
                         timer.purge();
@@ -469,7 +495,6 @@ public class BluetoothLeService extends Service {
                     }
                 }
             }
-            // Implement your Code here!
         }
     }
 }

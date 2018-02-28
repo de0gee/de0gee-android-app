@@ -31,7 +31,10 @@
         <TextView android:id="@+id/username"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="18sp"/>
+            android:textSize="18sp"
+            android:linksClickable="true"
+            android:autoLink="web"
+            />
     </LinearLayout>
     <LinearLayout android:orientation="horizontal"
         android:layout_width="match_parent"

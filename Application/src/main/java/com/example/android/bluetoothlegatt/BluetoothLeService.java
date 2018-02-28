@@ -78,7 +78,7 @@ public class BluetoothLeService extends Service {
     private final String LIST_UUID = "UUID";
 
     private Timer timer;
-    RequestQueue queue;
+    private RequestQueue queue;
 
     // services for posting data
     private static final String DE0GEE_URL = "http://192.168.0.23";
@@ -229,7 +229,7 @@ public class BluetoothLeService extends Service {
 
     public void sendData(final int sensorID, final int sensorValue) {
         try {
-            String URL = "http://192.168.0.22:8002/sensor";
+            String URL = "http://192.168.0.23:8002/sensor";
             JSONObject jsonBody = new JSONObject();
             jsonBody.put("u", mUsername);
             jsonBody.put("p", mPassword);

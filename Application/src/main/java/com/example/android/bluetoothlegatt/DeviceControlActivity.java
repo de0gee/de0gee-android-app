@@ -54,9 +54,9 @@ public class DeviceControlActivity extends Activity {
 
     // intents from the login form
     private static final String LOGIN_EMAIL = "com.example.android.bluetoothlegatt.login_email";
-    private static final String LOGIN_PASSWORD = "com.example.android.bluetoothlegatt.login_password";
+    private static final String LOGIN_APIKEY = "com.example.android.bluetoothlegatt.login_apikey";
     private String mLoginEmail;
-    private String mLoginPassword;
+    private String mAPIKey;
 
 
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
@@ -89,7 +89,7 @@ public class DeviceControlActivity extends Activity {
             }
             // Automatically connects to the device upon successful start-up initialization.
             mBluetoothLeService.connect(mDeviceAddress);
-            mBluetoothLeService.setUsernameAndPassword(mLoginEmail,mLoginPassword);
+            mBluetoothLeService.setUsernameAndPassword(mLoginEmail,mAPIKey);
         }
 
         @Override
@@ -174,12 +174,12 @@ public class DeviceControlActivity extends Activity {
         mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
         mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
         mLoginEmail = intent.getStringExtra(LOGIN_EMAIL);
-        mLoginPassword = intent.getStringExtra(LOGIN_PASSWORD);
-        Log.d(TAG,mLoginEmail);
+        mAPIKey = intent.getStringExtra(LOGIN_APIKEY);
+
 
         // Sets up UI references.
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
-        ((TextView) findViewById(R.id.username)).setText(TextUtils.htmlEncode("http://192.168.0.23:8002/realtime?username="+mLoginEmail+"&password="+mLoginPassword));
+        ((TextView) findViewById(R.id.username)).setText(TextUtils.htmlEncode(Globals.SERVER_ADDRESS + "/realtime?apikey="+mAPIKey));
         mGattServicesList = (ExpandableListView) findViewById(R.id.gatt_services_list);
         mGattServicesList.setOnChildClickListener(servicesListClickListner);
         mConnectionState = (TextView) findViewById(R.id.connection_state);

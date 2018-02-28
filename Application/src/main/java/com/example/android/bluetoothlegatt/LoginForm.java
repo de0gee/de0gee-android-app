@@ -36,13 +36,6 @@ public class LoginForm extends Activity {
     private RequestQueue queue;
     private  boolean mLoginSuccess;
 
-    private void handleLogin(boolean success) {
-        if (success == true) {
-            Toast.makeText(LoginForm.this,R.string.login_correct,Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(LoginForm.this,R.string.login_incorrect,Toast.LENGTH_SHORT).show();
-        }
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +55,8 @@ public class LoginForm extends Activity {
                 mLoginSuccess = false;
                 Log.v(TAG,mLoginEmail.getText().toString());
                 try {
-                    String URL = "http://192.168.0.23:8002/login";
+                    String URL = Globals.SERVER_ADDRESS+"/login";
+                    Log.d(TAG,"Attempting to connect to " + URL);
                     JSONObject jsonBody = new JSONObject();
                     jsonBody.put("u", mLoginEmail.getText().toString());
                     jsonBody.put("p", mLoginPassword.getText().toString());
@@ -75,7 +69,7 @@ public class LoginForm extends Activity {
                                 response = "Incorrect login";
                             } else {
                                 Intent intent = DeviceScanActivity.newIntent(LoginForm.this, mLoginEmail.getText().toString(), response);
-                                response = "Logged in";
+                                response = "Welcome " +  mLoginEmail.getText().toString();
                                 startActivity(intent);
                             }
                             Toast.makeText(LoginForm.this, response, Toast.LENGTH_LONG).show();

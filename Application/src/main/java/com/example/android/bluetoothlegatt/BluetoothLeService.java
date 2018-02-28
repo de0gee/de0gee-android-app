@@ -78,12 +78,13 @@ public class BluetoothLeService extends Service {
     private final String LIST_UUID = "UUID";
 
     private Timer timer;
+    private SomeBackgroundProcess pullData;
     private RequestQueue queue;
 
     // services for posting data
     private static final String DE0GEE_URL = "http://192.168.0.23";
     private String mUsername;
-    private String mPassword;
+    private String mAPIKey;
 
     private static final int STATE_DISCONNECTED = 0;
     private static final int STATE_CONNECTING = 1;
@@ -122,9 +123,11 @@ public class BluetoothLeService extends Service {
                 broadcastUpdate(intentAction);
                 Log.i(TAG, "Connected to GATT server.");
 
-                timer = new Timer();
-                // run every 10 milliseconds
-                timer.scheduleAtFixedRate(new TimerTaskExample(), 0, 100);
+//                timer = new Timer();
+//                // run every 10 milliseconds
+//                timer.scheduleAtFixedRate(new TimerTaskExample(), 0, 100);
+                pullData = new SomeBackgroundProcess();
+                pullData.start();
 
                 // Attempts to discover services after successful connection.
                 Log.i(TAG, "Attempting to start service discovery:" +
@@ -177,53 +180,36 @@ public class BluetoothLeService extends Service {
 
         final Intent intent = new Intent(action);
 
-        // This is special handling for the Heart Rate Measurement profile.  Data parsing is
-        // carried out as per profile specifications:
-        // http://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml
-        if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
-            int flag = characteristic.getProperties();
-            int format = -1;
-            if ((flag & 0x01) != 0) {
-                format = BluetoothGattCharacteristic.FORMAT_UINT16;
-                Log.d(TAG, "Heart rate format UINT16.");
-            } else {
-                format = BluetoothGattCharacteristic.FORMAT_UINT8;
-                Log.d(TAG, "Heart rate format UINT8.");
-            }
-            final int heartRate = characteristic.getIntValue(format, 1);
-            Log.d(TAG, String.format("Received heart rate: %d", heartRate));
-            intent.putExtra(EXTRA_DATA, String.valueOf(heartRate));
-        } else if (CHARACTERISTIC_DE0GEE_MOTION_SENSOR.equals(characteristic.getUuid())) {
-            int format = BluetoothGattCharacteristic.FORMAT_UINT16;
-            final int motionSensor = characteristic.getIntValue(format, 0);
-            int lastSensor = -1;
-            try {
-                lastSensor = characteristicCurrentValues.get(CHARACTERISTIC_DE0GEE_MOTION_SENSOR).intValue();
-            } catch (Exception e) {
-                lastSensor = -1;
-                // do nothing
-            }
-            if (motionSensor == lastSensor) {
-                Log.d(TAG,"same value, passing");
-            } else {
-                characteristicCurrentValues.put(CHARACTERISTIC_DE0GEE_MOTION_SENSOR, motionSensor);
-                sendData(4,motionSensor);
-                intent.putExtra(EXTRA_DATA, String.valueOf(motionSensor));
-            }
-        } else if (CHARACTERISTIC_DE0GEE_BATTERY.equals(characteristic.getUuid())) {
-            int format = BluetoothGattCharacteristic.FORMAT_UINT8;
-            final int motionSensor = characteristic.getIntValue(format, 0);
-            sendData(5,motionSensor);
-        }else{
-            // For all other profiles, writes the data formatted in HEX.
-            final byte[] data = characteristic.getValue();
-            if (data != null && data.length > 0) {
-                final StringBuilder stringBuilder = new StringBuilder(data.length);
-                for(byte byteChar : data)
-                    stringBuilder.append(String.format("%02X ", byteChar));
-                intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
-            }
+        Integer format = Globals.de0gee_characteristic_format.get(characteristic.getUuid());
+        if (format == null) {
+            Log.w(TAG,"got null format");
+            return;
         }
+        Integer id = Globals.de0gee_characteristic_id.get(characteristic.getUuid());
+        if (id == null) {
+            Log.w(TAG,"got null id");
+            return;
+        }
+
+        final int sensorValue = characteristic.getIntValue(format,0);
+
+        int lastSensor = -1;
+        try {
+            lastSensor = characteristicCurrentValues.get(characteristic.getUuid()).intValue();
+        } catch (Exception e) {
+            lastSensor = -1;
+            // do nothing
+        }
+        if (sensorValue == lastSensor) {
+            characteristicCurrentValues.put(characteristic.getUuid(), sensorValue);
+            sendData(id,sensorValue);
+        } else {
+            characteristicCurrentValues.put(characteristic.getUuid(), sensorValue);
+            sendData(id,sensorValue);
+            intent.putExtra(EXTRA_DATA, String.valueOf(sensorValue));
+        }
+
+        pullData.didRead();
         sendBroadcast(intent);
     }
 
@@ -231,8 +217,7 @@ public class BluetoothLeService extends Service {
         try {
             String URL = "http://192.168.0.23:8002/sensor";
             JSONObject jsonBody = new JSONObject();
-            jsonBody.put("u", mUsername);
-            jsonBody.put("p", mPassword);
+            jsonBody.put("a", mAPIKey);
             jsonBody.put("s", sensorID); // sensor ID
             jsonBody.put("v", sensorValue);
             jsonBody.put("t", Instant.now().toEpochMilli());
@@ -241,7 +226,7 @@ public class BluetoothLeService extends Service {
             StringRequest stringRequest = new StringRequest(Request.Method.POST, URL, new Response.Listener<String>() {
                 @Override
                 public void onResponse(String response) {
-                    Log.i("LOG_VOLLEY", response);
+//                    Log.i("LOG_VOLLEY", response);
                 }
             }, new Response.ErrorListener() {
                 @Override
@@ -384,8 +369,9 @@ public class BluetoothLeService extends Service {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
-        timer.cancel();
-        timer.purge();
+        pullData.stop();
+//        timer.cancel();
+//        timer.purge();
         mBluetoothGatt.disconnect();
     }
 
@@ -397,8 +383,9 @@ public class BluetoothLeService extends Service {
         if (mBluetoothGatt == null) {
             return;
         }
-        timer.cancel();
-        timer.purge();
+        pullData.stop();
+//        timer.cancel();
+//        timer.purge();
         mBluetoothGatt.close();
         mBluetoothGatt = null;
     }
@@ -444,9 +431,9 @@ public class BluetoothLeService extends Service {
     /**
      *  Set username and password
      */
-    public void setUsernameAndPassword(String username, String password) {
+    public void setUsernameAndPassword(String username, String apikey) {
         mUsername = username;
-        mPassword = password;
+        mAPIKey = apikey;
         return;
     }
 
@@ -477,37 +464,97 @@ public class BluetoothLeService extends Service {
         return gattServices;
     }
 
+    public class SomeBackgroundProcess implements Runnable {
 
-
-    public class TimerTaskExample extends TimerTask {
+        Thread backgroundThread;
         private int count = 0;
+        private boolean hasRead = true;
 
-        public TimerTaskExample() {
-            count = 10;
+        public void didRead() {
+            this.hasRead = true;
         }
 
-        @Override
-        public void run() {
-            count = count + 1;
-            UUID checkCharacteristic = CHARACTERISTIC_DE0GEE_MOTION_SENSOR;
-            if (count % 100 == 0) {
-                checkCharacteristic = CHARACTERISTIC_DE0GEE_BATTERY;
-            } else {
-                checkCharacteristic = CHARACTERISTIC_DE0GEE_MOTION_SENSOR;
+        public void start() {
+            if (backgroundThread == null) {
+                backgroundThread = new Thread(this);
+                backgroundThread.start();
             }
-            // get the specified data
-            for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
-                if (checkCharacteristic.equals(gattCharacteristic.getUuid())) {
-                    try {
-                        mBluetoothGatt.readCharacteristic(gattCharacteristic);
-                        break;
-                    } catch (Exception e) {
-                        timer.cancel();
-                        timer.purge();
-                        return;
-                    }
+        }
+
+        public void stop() {
+            if (backgroundThread != null) {
+                backgroundThread.interrupt();
+            }
+        }
+
+        public void run() {
+            try {
+                Log.i(TAG,"Thread starting.");
+                while (!this.backgroundThread.interrupted()) {
+                        // get the specified data
+                        for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
+                            while (hasRead == false) {
+                                // wait
+                            }
+                            Integer steps = Globals.de0gee_characteristic_steps.get(gattCharacteristic.getUuid());
+                            if (steps == null) {
+                                continue;
+                            }
+                            if (count % steps  == 0) {
+                                try {
+                                    hasRead = false;
+                                    mBluetoothGatt.readCharacteristic(gattCharacteristic);
+                                } catch (Exception e) {
+                                    backgroundThread.interrupt();
+                                    break;
+                                }
+                            }
+                        }
+                        // iterate the counter
+                        count = count + 1;
+//                        Log.d(TAG,Integer.toString(count));
                 }
+                Log.i(TAG,"Thread stopping.");
+            } catch (Exception e) {
+                // important you respond to the InterruptedException and stop processing
+                // when its thrown!  Notice this is outside the while loop.
+                Log.i(TAG,"Thread shutting down as it was requested to stop.");
+            } finally {
+                backgroundThread = null;
             }
         }
     }
+
+//
+//    public class TimerTaskExample extends TimerTask {
+//        private int count = 0;
+//
+//        public TimerTaskExample() {
+//            count = 0;
+//        }
+//
+//        @Override
+//        public void run() {
+//            // get the specified data
+//            for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
+//                Integer steps = Globals.de0gee_characteristic_steps.get(gattCharacteristic.getUuid());
+//                if (steps == null) {
+//                    continue;
+//                }
+//                if (count % steps  == 0) {
+//                    try {
+//                        mBluetoothGatt.readCharacteristic(gattCharacteristic);
+//                        Thread.sleep(10);
+//                    } catch (Exception e) {
+//                        timer.cancel();
+//                        timer.purge();
+//                        return;
+//                    }
+//                }
+//            }
+//            // iterate the counter
+//            count = count + 1;
+//
+//        }
+//    }
 }

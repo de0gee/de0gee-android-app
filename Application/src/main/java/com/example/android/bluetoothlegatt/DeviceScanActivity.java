@@ -45,9 +45,9 @@ public class DeviceScanActivity extends ListActivity {
 
     // intents from the login form
     private static final String LOGIN_EMAIL = "com.example.android.bluetoothlegatt.login_email";
-    private static final String LOGIN_PASSWORD = "com.example.android.bluetoothlegatt.login_password";
+    private static final String LOGIN_APIKEY = "com.example.android.bluetoothlegatt.login_apikey";
     private String mLoginEmail;
-    private String mLoginPassword;
+    private String mAPIKey;
 
 
     private LeDeviceListAdapter mLeDeviceListAdapter;
@@ -60,10 +60,10 @@ public class DeviceScanActivity extends ListActivity {
     private static final long SCAN_PERIOD = 10000;
 
 
-    public static Intent newIntent(Context packageContext, String loginEmail, String loginPassword) {
+    public static Intent newIntent(Context packageContext, String username, String apikey) {
         Intent intent = new Intent(packageContext,DeviceScanActivity.class);
-        intent.putExtra(LOGIN_EMAIL,loginEmail);
-        intent.putExtra(LOGIN_PASSWORD,loginPassword);
+        intent.putExtra(LOGIN_EMAIL,username);
+        intent.putExtra(LOGIN_APIKEY,apikey);
         return intent;
     }
 
@@ -73,7 +73,7 @@ public class DeviceScanActivity extends ListActivity {
 
         final Intent intent = getIntent();
         mLoginEmail = intent.getStringExtra(LOGIN_EMAIL);
-        mLoginPassword = intent.getStringExtra(LOGIN_PASSWORD);
+        mAPIKey = intent.getStringExtra(LOGIN_APIKEY);
 
         getActionBar().setTitle(R.string.title_devices);
         mHandler = new Handler();
@@ -173,7 +173,7 @@ public class DeviceScanActivity extends ListActivity {
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
         intent.putExtra(LOGIN_EMAIL,mLoginEmail);
-        intent.putExtra(LOGIN_PASSWORD,mLoginPassword);
+        intent.putExtra(LOGIN_APIKEY,mAPIKey);
         if (mScanning) {
             mBluetoothAdapter.stopLeScan(mLeScanCallback);
             mScanning = false;

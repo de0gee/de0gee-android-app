@@ -27,6 +27,8 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -167,6 +169,20 @@ public class DeviceControlActivity extends Activity {
         mGattServicesList.setOnChildClickListener(servicesListClickListner);
         mConnectionState = (TextView) findViewById(R.id.connection_state);
         mDataField = (TextView) findViewById(R.id.data_value);
+
+//        // setup notification
+//        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this, "0")
+//                .setSmallIcon(R.drawable.ic_bluetooth_connect)
+//                .setContentTitle("My notification")
+//                .setContentText("Much longer text that cannot fit one line...")
+//                .setStyle(new NotificationCompat.BigTextStyle()
+//                        .bigText("Much longer text that cannot fit one line..."))
+//                .setPriority(NotificationCompat.PRIORITY_HIGH);
+//
+//        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+//        // notificationId is a unique int for each notification that you must define
+//        notificationManager.notify(0, mBuilder.build());
+
 
         getActionBar().setTitle(mDeviceName);
         getActionBar().setDisplayHomeAsUpEnabled(true);

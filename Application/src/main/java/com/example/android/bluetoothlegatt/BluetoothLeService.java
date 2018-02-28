@@ -206,13 +206,13 @@ public class BluetoothLeService extends Service {
                 Log.d(TAG,"same value, passing");
             } else {
                 characteristicCurrentValues.put(CHARACTERISTIC_DE0GEE_MOTION_SENSOR, motionSensor);
-                sendData("2",motionSensor);
+                sendData(4,motionSensor);
                 intent.putExtra(EXTRA_DATA, String.valueOf(motionSensor));
             }
         } else if (CHARACTERISTIC_DE0GEE_BATTERY.equals(characteristic.getUuid())) {
             int format = BluetoothGattCharacteristic.FORMAT_UINT8;
             final int motionSensor = characteristic.getIntValue(format, 0);
-            sendData("1",motionSensor);
+            sendData(5,motionSensor);
         }else{
             // For all other profiles, writes the data formatted in HEX.
             final byte[] data = characteristic.getValue();
@@ -226,15 +226,15 @@ public class BluetoothLeService extends Service {
         sendBroadcast(intent);
     }
 
-    public void sendData(final String characteristicUUID, final int characteristicValue) {
+    public void sendData(final int sensorID, final int sensorValue) {
         try {
-            String URL = "http://192.168.0.23:8080";
+            String URL = "http://192.168.0.22:8002/sensor";
             JSONObject jsonBody = new JSONObject();
-            jsonBody.put("user", "manu");
-            jsonBody.put("password", "123");
-            jsonBody.put("uuid", characteristicUUID);
-            jsonBody.put("value", characteristicValue);
-            jsonBody.put("timestamp", Instant.now().toEpochMilli());
+            jsonBody.put("u", "zack");
+            jsonBody.put("p", "password");
+            jsonBody.put("s", sensorID); // sensor ID
+            jsonBody.put("v", sensorValue);
+            jsonBody.put("t", Instant.now().toEpochMilli());
             final String mRequestBody = jsonBody.toString();
 
             StringRequest stringRequest = new StringRequest(Request.Method.POST, URL, new Response.Listener<String>() {

@@ -50,8 +50,16 @@ import java.util.List;
 public class DeviceControlActivity extends Activity {
     private final static String TAG = DeviceControlActivity.class.getSimpleName();
 
+    // intents from the login form
+    private static final String LOGIN_EMAIL = "com.example.android.bluetoothlegatt.login_email";
+    private static final String LOGIN_PASSWORD = "com.example.android.bluetoothlegatt.login_password";
+    private String mLoginEmail;
+    private String mLoginPassword;
+
+
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
+
 
     private TextView mConnectionState;
     private TextView mDataField;
@@ -79,6 +87,7 @@ public class DeviceControlActivity extends Activity {
             }
             // Automatically connects to the device upon successful start-up initialization.
             mBluetoothLeService.connect(mDeviceAddress);
+            mBluetoothLeService.setUsernameAndPassword(mLoginEmail,mLoginPassword);
         }
 
         @Override
@@ -162,9 +171,13 @@ public class DeviceControlActivity extends Activity {
         final Intent intent = getIntent();
         mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
         mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+        mLoginEmail = intent.getStringExtra(LOGIN_EMAIL);
+        mLoginPassword = intent.getStringExtra(LOGIN_PASSWORD);
+        Log.d(TAG,mLoginEmail);
 
         // Sets up UI references.
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
+        ((TextView) findViewById(R.id.username)).setText(mLoginEmail);
         mGattServicesList = (ExpandableListView) findViewById(R.id.gatt_services_list);
         mGattServicesList.setOnChildClickListener(servicesListClickListner);
         mConnectionState = (TextView) findViewById(R.id.connection_state);

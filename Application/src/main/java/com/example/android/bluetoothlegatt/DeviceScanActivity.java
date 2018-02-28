@@ -42,6 +42,14 @@ import java.util.ArrayList;
  * Activity for scanning and displaying available Bluetooth LE devices.
  */
 public class DeviceScanActivity extends ListActivity {
+
+    // intents from the login form
+    private static final String LOGIN_EMAIL = "com.example.android.bluetoothlegatt.login_email";
+    private static final String LOGIN_PASSWORD = "com.example.android.bluetoothlegatt.login_password";
+    private String mLoginEmail;
+    private String mLoginPassword;
+
+
     private LeDeviceListAdapter mLeDeviceListAdapter;
     private BluetoothAdapter mBluetoothAdapter;
     private boolean mScanning;
@@ -51,9 +59,22 @@ public class DeviceScanActivity extends ListActivity {
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
 
+
+    public static Intent newIntent(Context packageContext, String loginEmail, String loginPassword) {
+        Intent intent = new Intent(packageContext,DeviceScanActivity.class);
+        intent.putExtra(LOGIN_EMAIL,loginEmail);
+        intent.putExtra(LOGIN_PASSWORD,loginPassword);
+        return intent;
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        final Intent intent = getIntent();
+        mLoginEmail = intent.getStringExtra(LOGIN_EMAIL);
+        mLoginPassword = intent.getStringExtra(LOGIN_PASSWORD);
+
         getActionBar().setTitle(R.string.title_devices);
         mHandler = new Handler();
 
@@ -151,6 +172,8 @@ public class DeviceScanActivity extends ListActivity {
         final Intent intent = new Intent(this, DeviceControlActivity.class);
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
+        intent.putExtra(LOGIN_EMAIL,mLoginEmail);
+        intent.putExtra(LOGIN_PASSWORD,mLoginPassword);
         if (mScanning) {
             mBluetoothAdapter.stopLeScan(mLeScanCallback);
             mScanning = false;

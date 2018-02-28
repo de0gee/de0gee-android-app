@@ -82,7 +82,8 @@ public class BluetoothLeService extends Service {
 
     // services for posting data
     private static final String DE0GEE_URL = "http://192.168.0.23";
-
+    private String mUsername;
+    private String mPassword;
 
     private static final int STATE_DISCONNECTED = 0;
     private static final int STATE_CONNECTING = 1;
@@ -230,8 +231,8 @@ public class BluetoothLeService extends Service {
         try {
             String URL = "http://192.168.0.22:8002/sensor";
             JSONObject jsonBody = new JSONObject();
-            jsonBody.put("u", "zack");
-            jsonBody.put("p", "password");
+            jsonBody.put("u", mUsername);
+            jsonBody.put("p", mPassword);
             jsonBody.put("s", sensorID); // sensor ID
             jsonBody.put("v", sensorValue);
             jsonBody.put("t", Instant.now().toEpochMilli());
@@ -438,6 +439,15 @@ public class BluetoothLeService extends Service {
             descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
             mBluetoothGatt.writeDescriptor(descriptor);
         }
+    }
+
+    /**
+     *  Set username and password
+     */
+    public void setUsernameAndPassword(String username, String password) {
+        mUsername = username;
+        mPassword = password;
+        return;
     }
 
     /**

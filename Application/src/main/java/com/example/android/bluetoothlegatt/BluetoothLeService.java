@@ -16,7 +16,6 @@
 
 package com.example.android.bluetoothlegatt;
 
-import android.app.NotificationManager;
 import android.app.Service;
 import android.os.SystemClock;
 import android.bluetooth.BluetoothAdapter;
@@ -24,7 +23,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -32,34 +30,20 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
 import android.util.Log;
 
-import com.android.volley.AuthFailureError;
-import com.android.volley.NetworkResponse;
-import com.android.volley.Request;
-import com.android.volley.Response;
-import com.android.volley.RequestQueue;
-import com.android.volley.VolleyError;
-import com.android.volley.VolleyLog;
-import com.android.volley.toolbox.HttpHeaderParser;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
 import java.util.UUID;
 
 /**
@@ -81,7 +65,6 @@ public class BluetoothLeService extends Service {
     private final String LIST_UUID = "UUID";
 
     private SomeBackgroundProcess pullData = null;
-    private RequestQueue queue;
 
     // services for posting data
     private String mUsername;
@@ -333,7 +316,6 @@ public class BluetoothLeService extends Service {
         }
         connectWebSocket();
 
-        queue = Volley.newRequestQueue(this);
         return true;
     }
 
@@ -488,6 +470,7 @@ public class BluetoothLeService extends Service {
 
         Thread backgroundThread;
         private int count = 0;
+        private int noReadings = 0;
         private boolean hasRead = true;
 
         public void didRead() {
@@ -517,10 +500,12 @@ public class BluetoothLeService extends Service {
                     // get the specified data
                     for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
                         final long elapsedThreadMillis = SystemClock.currentThreadTimeMillis();
+                        Log.d(TAG,"Reading " + gattCharacteristic.getUuid().toString());
                         while (true) {
                             // wait
                             if (SystemClock.currentThreadTimeMillis() - elapsedThreadMillis > 5000) {
                                 synchronized ((Object) hasRead) {
+                                    noReadings = noReadings + 1;
                                     hasRead = true;
                                 }
                             }
@@ -530,12 +515,18 @@ public class BluetoothLeService extends Service {
                                 }
                             }
                         }
+                        Log.d(TAG,"noReadings: " + Integer.toString(noReadings));
+                        if (noReadings > 0) {
+                            initialize();
+                            noReadings = 0;
+                        }
                         Integer steps = Globals.de0gee_characteristic_steps.get(gattCharacteristic.getUuid());
                         if (steps == null) {
                             continue;
                         }
                         if (count % steps == 0) {
                             try {
+                                Log.d(TAG,"attempting read of " + gattCharacteristic.getUuid().toString());
                                 synchronized ((Object) hasRead) {
                                     hasRead = false;
                                 }

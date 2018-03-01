@@ -17,6 +17,14 @@
         tools:layout_editor_absoluteX="8dp"
         tools:layout_editor_absoluteY="8dp">
 
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="center"
+            android:textSize="20dp"
+            android:text="Enter your credentials:" />
+
         <EditText
             android:id="@+id/login_email"
             android:layout_width="match_parent"
@@ -38,5 +46,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Login" />
+
     </LinearLayout>
 </android.support.constraint.ConstraintLayout>

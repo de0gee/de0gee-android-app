@@ -18,6 +18,7 @@ package com.example.android.bluetoothlegatt;
 
 import android.app.NotificationManager;
 import android.app.Service;
+import android.os.SystemClock;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -78,11 +79,10 @@ public class BluetoothLeService extends Service {
     private final String LIST_UUID = "UUID";
 
     private Timer timer;
-    private SomeBackgroundProcess pullData;
+    private SomeBackgroundProcess pullData = null;
     private RequestQueue queue;
 
     // services for posting data
-    private static final String DE0GEE_URL = "http://192.168.0.23";
     private String mUsername;
     private String mAPIKey;
 
@@ -122,12 +122,10 @@ public class BluetoothLeService extends Service {
                 mConnectionState = STATE_CONNECTED;
                 broadcastUpdate(intentAction);
                 Log.i(TAG, "Connected to GATT server.");
-
-//                timer = new Timer();
-//                // run every 10 milliseconds
-//                timer.scheduleAtFixedRate(new TimerTaskExample(), 0, 100);
-                pullData = new SomeBackgroundProcess();
-                pullData.start();
+                if (pullData == null) {
+                    pullData = new SomeBackgroundProcess();
+                    pullData.start();
+                }
 
                 // Attempts to discover services after successful connection.
                 Log.i(TAG, "Attempting to start service discovery:" +
@@ -137,7 +135,13 @@ public class BluetoothLeService extends Service {
                 intentAction = ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
                 Log.i(TAG, "Disconnected from GATT server.");
+                if (pullData != null) {
+                    pullData.stop();
+                    pullData = null;
+                }
                 broadcastUpdate(intentAction);
+                // try to reconnect
+                connect(mBluetoothDeviceAddress);
             }
         }
 
@@ -215,7 +219,7 @@ public class BluetoothLeService extends Service {
 
     public void sendData(final int sensorID, final int sensorValue) {
         try {
-            String URL = "http://192.168.0.23:8002/sensor";
+            String URL = Globals.SERVER_ADDRESS + "/sensor";
             JSONObject jsonBody = new JSONObject();
             jsonBody.put("a", mAPIKey);
             jsonBody.put("s", sensorID); // sensor ID
@@ -312,6 +316,11 @@ public class BluetoothLeService extends Service {
             return false;
         }
 
+        if (pullData == null) {
+            pullData = new SomeBackgroundProcess();
+            pullData.start();
+        }
+
         queue = Volley.newRequestQueue(this);
         return true;
     }
@@ -365,13 +374,15 @@ public class BluetoothLeService extends Service {
      * callback.
      */
     public void disconnect() {
+        Log.d(TAG,"Bluetooth disconnect() called");
+        if (pullData != null) {
+            pullData.stop();
+            pullData = null;
+        }
         if (mBluetoothAdapter == null || mBluetoothGatt == null) {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
-        pullData.stop();
-//        timer.cancel();
-//        timer.purge();
         mBluetoothGatt.disconnect();
     }
 
@@ -380,12 +391,14 @@ public class BluetoothLeService extends Service {
      * released properly.
      */
     public void close() {
+        Log.d(TAG,"Bluetooth close() called");
+        if (pullData != null) {
+            pullData.stop();
+            pullData = null;
+        }
         if (mBluetoothGatt == null) {
             return;
         }
-        pullData.stop();
-//        timer.cancel();
-//        timer.purge();
         mBluetoothGatt.close();
         mBluetoothGatt = null;
     }
@@ -493,8 +506,12 @@ public class BluetoothLeService extends Service {
                 while (!this.backgroundThread.interrupted()) {
                         // get the specified data
                         for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
+                            final long elapsedThreadMillis  = SystemClock.currentThreadTimeMillis();
                             while (hasRead == false) {
                                 // wait
+                                if (SystemClock.currentThreadTimeMillis() - elapsedThreadMillis > 1000) {
+                                    hasRead = true;
+                                }
                             }
                             Integer steps = Globals.de0gee_characteristic_steps.get(gattCharacteristic.getUuid());
                             if (steps == null) {

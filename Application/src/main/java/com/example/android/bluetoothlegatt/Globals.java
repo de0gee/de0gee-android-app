@@ -15,7 +15,7 @@ import java.util.UUID;
  * This class includes a small subset of standard GATT attributes for demonstration purposes.
  */
 public class Globals {
-    public static final String SERVER_ADDRESS = "http://192.168.0.23:8002";
+    public static final String SERVER_ADDRESS = "https://cloud.de0gee.com";
 
     public static final UUID TEMPERATURE= UUID.fromString("00002a6e-0000-1000-8000-00805f9b34fb");
     public static final UUID HUMIDTY= UUID.fromString("00002a6f-0000-1000-8000-00805f9b34fb");

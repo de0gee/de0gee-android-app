@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Looper;
+import android.support.v7.app.ActionBar;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -20,14 +21,14 @@ import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import android.support.v7.app.AppCompatActivity;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
-import java.time.Instant;
 
-public class LoginForm extends Activity {
+public class LoginForm extends AppCompatActivity  {
     private final static String TAG = LoginForm.class.getSimpleName();
 
     private Button mLoginButton;
@@ -42,6 +43,8 @@ public class LoginForm extends Activity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login_form);
+
+        ActionBar ab = getSupportActionBar();
 
         queue = Volley.newRequestQueue(this);
 

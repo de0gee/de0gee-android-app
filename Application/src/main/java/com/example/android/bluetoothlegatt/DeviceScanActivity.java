@@ -35,6 +35,7 @@ import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.app.ActionBar;
 
 import java.util.ArrayList;
 
@@ -75,7 +76,8 @@ public class DeviceScanActivity extends ListActivity {
         mLoginEmail = intent.getStringExtra(LOGIN_EMAIL);
         mAPIKey = intent.getStringExtra(LOGIN_APIKEY);
 
-        getActionBar().setTitle(R.string.title_devices);
+//        final ActionBar bar =  getSupportActionBar();
+//        bar.setTitle(R.string.title_devices);
         mHandler = new Handler();
 
         // Use this check to determine whether BLE is supported on the device.  Then you can

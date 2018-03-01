@@ -51,13 +51,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
 
 /**
@@ -78,7 +76,6 @@ public class BluetoothLeService extends Service {
     private final String LIST_NAME = "NAME";
     private final String LIST_UUID = "UUID";
 
-    private Timer timer;
     private SomeBackgroundProcess pullData = null;
     private RequestQueue queue;
 
@@ -101,15 +98,7 @@ public class BluetoothLeService extends Service {
     public final static String EXTRA_DATA =
             "com.example.bluetooth.le.EXTRA_DATA";
 
-    public final static UUID UUID_HEART_RATE_MEASUREMENT =
-            UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT);
-
-    public final static UUID CHARACTERISTIC_DE0GEE_MOTION_SENSOR =
-            UUID.fromString("15e438b8-558e-4b1f-992f-23f90a8c129b");
-    public final static UUID CHARACTERISTIC_DE0GEE_BATTERY =
-            UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb");
-
-    private Map<UUID,Integer> characteristicCurrentValues = new HashMap<UUID,Integer>();
+    private Map<UUID, Integer> characteristicCurrentValues = new HashMap<UUID, Integer>();
 
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
@@ -122,15 +111,13 @@ public class BluetoothLeService extends Service {
                 mConnectionState = STATE_CONNECTED;
                 broadcastUpdate(intentAction);
                 Log.i(TAG, "Connected to GATT server.");
+                // Attempts to discover services after successful connection.
+                Log.i(TAG, "Attempting to start service discovery:" +
+                        mBluetoothGatt.discoverServices());
                 if (pullData == null) {
                     pullData = new SomeBackgroundProcess();
                     pullData.start();
                 }
-
-                // Attempts to discover services after successful connection.
-                Log.i(TAG, "Attempting to start service discovery:" +
-                        mBluetoothGatt.discoverServices());
-
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
@@ -158,6 +145,7 @@ public class BluetoothLeService extends Service {
         public void onCharacteristicRead(BluetoothGatt gatt,
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
+            Log.d(TAG,"onCharacteristicRead (" + Integer.toString(status) + ") " + characteristic.getUuid().toString());
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
             }
@@ -176,8 +164,6 @@ public class BluetoothLeService extends Service {
     }
 
 
-
-
     private void broadcastUpdate(final String action,
                                  final BluetoothGattCharacteristic characteristic) {
 
@@ -186,16 +172,16 @@ public class BluetoothLeService extends Service {
 
         Integer format = Globals.de0gee_characteristic_format.get(characteristic.getUuid());
         if (format == null) {
-            Log.w(TAG,"got null format");
+            Log.w(TAG, "got null format");
             return;
         }
         Integer id = Globals.de0gee_characteristic_id.get(characteristic.getUuid());
         if (id == null) {
-            Log.w(TAG,"got null id");
+            Log.w(TAG, "got null id");
             return;
         }
 
-        final int sensorValue = characteristic.getIntValue(format,0);
+        final int sensorValue = characteristic.getIntValue(format, 0);
 
         int lastSensor = -1;
         try {
@@ -206,10 +192,10 @@ public class BluetoothLeService extends Service {
         }
         if (sensorValue == lastSensor) {
             characteristicCurrentValues.put(characteristic.getUuid(), sensorValue);
-            sendData(id,sensorValue);
+            sendData(id, sensorValue);
         } else {
             characteristicCurrentValues.put(characteristic.getUuid(), sensorValue);
-            sendData(id,sensorValue);
+            sendData(id, sensorValue);
             intent.putExtra(EXTRA_DATA, String.valueOf(sensorValue));
         }
 
@@ -224,7 +210,7 @@ public class BluetoothLeService extends Service {
             jsonBody.put("a", mAPIKey);
             jsonBody.put("s", sensorID); // sensor ID
             jsonBody.put("v", sensorValue);
-            jsonBody.put("t", Instant.now().toEpochMilli());
+            jsonBody.put("t", System.currentTimeMillis());
             final String mRequestBody = jsonBody.toString();
 
             StringRequest stringRequest = new StringRequest(Request.Method.POST, URL, new Response.Listener<String>() {
@@ -329,11 +315,10 @@ public class BluetoothLeService extends Service {
      * Connects to the GATT server hosted on the Bluetooth LE device.
      *
      * @param address The device address of the destination device.
-     *
      * @return Return true if the connection is initiated successfully. The connection result
-     *         is reported asynchronously through the
-     *         {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
-     *         callback.
+     * is reported asynchronously through the
+     * {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
+     * callback.
      */
     public boolean connect(final String address) {
         if (mBluetoothAdapter == null || address == null) {
@@ -374,7 +359,7 @@ public class BluetoothLeService extends Service {
      * callback.
      */
     public void disconnect() {
-        Log.d(TAG,"Bluetooth disconnect() called");
+        Log.d(TAG, "Bluetooth disconnect() called");
         if (pullData != null) {
             pullData.stop();
             pullData = null;
@@ -391,7 +376,7 @@ public class BluetoothLeService extends Service {
      * released properly.
      */
     public void close() {
-        Log.d(TAG,"Bluetooth close() called");
+        Log.d(TAG, "Bluetooth close() called");
         if (pullData != null) {
             pullData.stop();
             pullData = null;
@@ -422,7 +407,7 @@ public class BluetoothLeService extends Service {
      * Enables or disables notification on a give characteristic.
      *
      * @param characteristic Characteristic to act on.
-     * @param enabled If true, enable notification.  False otherwise.
+     * @param enabled        If true, enable notification.  False otherwise.
      */
     public void setCharacteristicNotification(BluetoothGattCharacteristic characteristic,
                                               boolean enabled) {
@@ -431,18 +416,10 @@ public class BluetoothLeService extends Service {
             return;
         }
         mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
-
-        // This is specific to Heart Rate Measurement.
-        if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
-            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
-                    UUID.fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            mBluetoothGatt.writeDescriptor(descriptor);
-        }
     }
 
     /**
-     *  Set username and password
+     * Set username and password
      */
     public void setUsernameAndPassword(String username, String apikey) {
         mUsername = username;
@@ -457,6 +434,7 @@ public class BluetoothLeService extends Service {
      * @return A {@code List} of supported services.
      */
     public List<BluetoothGattService> getSupportedGattServices() {
+        Log.d(TAG,"getSupportedGattServices()");
         if (mBluetoothGatt == null) return null;
         List<BluetoothGattService> gattServices = mBluetoothGatt.getServices();
 
@@ -484,7 +462,9 @@ public class BluetoothLeService extends Service {
         private boolean hasRead = true;
 
         public void didRead() {
-            this.hasRead = true;
+            synchronized ((Object) hasRead) {
+                hasRead = true;
+            }
         }
 
         public void start() {
@@ -501,77 +481,62 @@ public class BluetoothLeService extends Service {
         }
 
         public void run() {
+            boolean tryAgain = false;
             try {
-                Log.i(TAG,"Thread starting.");
+                Log.i(TAG, "Thread starting.");
                 while (!this.backgroundThread.interrupted()) {
-                        // get the specified data
-                        for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
-                            final long elapsedThreadMillis  = SystemClock.currentThreadTimeMillis();
-                            while (hasRead == false) {
-                                // wait
-                                if (SystemClock.currentThreadTimeMillis() - elapsedThreadMillis > 1000) {
+                    // get the specified data
+                    for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
+                        final long elapsedThreadMillis = SystemClock.currentThreadTimeMillis();
+                        while (true) {
+                            // wait
+                            if (SystemClock.currentThreadTimeMillis() - elapsedThreadMillis > 5000) {
+                                synchronized ((Object) hasRead) {
                                     hasRead = true;
                                 }
                             }
-                            Integer steps = Globals.de0gee_characteristic_steps.get(gattCharacteristic.getUuid());
-                            if (steps == null) {
-                                continue;
-                            }
-                            if (count % steps  == 0) {
-                                try {
-                                    hasRead = false;
-                                    mBluetoothGatt.readCharacteristic(gattCharacteristic);
-                                } catch (Exception e) {
-                                    backgroundThread.interrupt();
+                            synchronized ((Object) hasRead) {
+                                if (hasRead == true) {
                                     break;
                                 }
                             }
                         }
-                        // iterate the counter
-                        count = count + 1;
-//                        Log.d(TAG,Integer.toString(count));
+                        Integer steps = Globals.de0gee_characteristic_steps.get(gattCharacteristic.getUuid());
+                        if (steps == null) {
+                            continue;
+                        }
+                        if (count % steps == 0) {
+                            try {
+                                synchronized ((Object) hasRead) {
+                                    hasRead = false;
+                                }
+                                mBluetoothGatt.readCharacteristic(gattCharacteristic);
+                            } catch (Exception e) {
+                                Log.d(TAG,"problem reading " + e.toString());
+                                backgroundThread.interrupt();
+                                break;
+                            }
+                        }
+                    }
+                    // iterate the counter
+                    count = count + 1;
                 }
-                Log.i(TAG,"Thread stopping.");
+                Log.i(TAG, "Thread stopping.");
+            } catch (java.util.ConcurrentModificationException e) {
+                Log.d(TAG, "Thread stopped, concurrent modification, trying again " + e.toString());
+                tryAgain = true;
             } catch (Exception e) {
                 // important you respond to the InterruptedException and stop processing
                 // when its thrown!  Notice this is outside the while loop.
-                Log.i(TAG,"Thread shutting down as it was requested to stop.");
+                Log.d(TAG, "Thread stopped: " + e.toString());
             } finally {
                 backgroundThread = null;
+                if (tryAgain == true) {
+                    backgroundThread = new Thread(this);
+                    backgroundThread.start();
+                }
             }
         }
     }
 
-//
-//    public class TimerTaskExample extends TimerTask {
-//        private int count = 0;
-//
-//        public TimerTaskExample() {
-//            count = 0;
-//        }
-//
-//        @Override
-//        public void run() {
-//            // get the specified data
-//            for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
-//                Integer steps = Globals.de0gee_characteristic_steps.get(gattCharacteristic.getUuid());
-//                if (steps == null) {
-//                    continue;
-//                }
-//                if (count % steps  == 0) {
-//                    try {
-//                        mBluetoothGatt.readCharacteristic(gattCharacteristic);
-//                        Thread.sleep(10);
-//                    } catch (Exception e) {
-//                        timer.cancel();
-//                        timer.purge();
-//                        return;
-//                    }
-//                }
-//            }
-//            // iterate the counter
-//            count = count + 1;
-//
-//        }
-//    }
 }

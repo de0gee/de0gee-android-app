@@ -47,10 +47,14 @@ import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -100,6 +104,64 @@ public class BluetoothLeService extends Service {
 
     private Map<UUID, Integer> characteristicCurrentValues = new HashMap<UUID, Integer>();
 
+    // Websocket stuff
+    private WebSocketClient mWebSocketClient;
+
+    private void connectWebSocket() {
+        URI uri;
+        try {
+            uri = new URI(Globals.WEBSOCKET_ADDRESS);
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        mWebSocketClient = new WebSocketClient(uri) {
+            @Override
+            public void onMessage(String s) {
+                Log.d(TAG, "message: " + s);
+            }
+
+            @Override
+            public void onOpen(ServerHandshake serverHandshake) {
+                Log.i("Websocket", "Opened");
+                mWebSocketClient.send("Hello");
+            }
+
+            @Override
+            public void onClose(int i, String s, boolean b) {
+                Log.i("Websocket", "Closed " + s);
+                new java.util.Timer().schedule(
+                        new java.util.TimerTask() {
+                            @Override
+                            public void run() {
+                                // your code here
+                                connectWebSocket();
+                            }
+                        },
+                        5000
+                );
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.i("Websocket", "Error " + e.getMessage());
+            }
+        };
+        mWebSocketClient.connect();
+    }
+
+    public void sendMessage(String message) {
+        try {
+            if (mWebSocketClient.isClosed() == false) {
+                mWebSocketClient.send(message);
+            }
+        } catch (Exception e) {
+            Log.w(TAG,e.toString());
+        }
+    }
+
+
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
     private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
@@ -118,6 +180,7 @@ public class BluetoothLeService extends Service {
                     pullData = new SomeBackgroundProcess();
                     pullData.start();
                 }
+                connectWebSocket();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
@@ -126,6 +189,8 @@ public class BluetoothLeService extends Service {
                     pullData.stop();
                     pullData = null;
                 }
+                mWebSocketClient.close();
+
                 broadcastUpdate(intentAction);
                 // try to reconnect
                 connect(mBluetoothDeviceAddress);
@@ -205,53 +270,13 @@ public class BluetoothLeService extends Service {
 
     public void sendData(final int sensorID, final int sensorValue) {
         try {
-            String URL = Globals.SERVER_ADDRESS + "/sensor";
             JSONObject jsonBody = new JSONObject();
             jsonBody.put("a", mAPIKey);
             jsonBody.put("s", sensorID); // sensor ID
             jsonBody.put("v", sensorValue);
             jsonBody.put("t", System.currentTimeMillis());
             final String mRequestBody = jsonBody.toString();
-
-            StringRequest stringRequest = new StringRequest(Request.Method.POST, URL, new Response.Listener<String>() {
-                @Override
-                public void onResponse(String response) {
-//                    Log.i("LOG_VOLLEY", response);
-                }
-            }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    Log.e("LOG_VOLLEY", error.toString());
-                }
-            }) {
-                @Override
-                public String getBodyContentType() {
-                    return "application/json; charset=utf-8";
-                }
-
-                @Override
-                public byte[] getBody() throws AuthFailureError {
-                    try {
-                        return mRequestBody == null ? null : mRequestBody.getBytes("utf-8");
-                    } catch (UnsupportedEncodingException uee) {
-                        VolleyLog.wtf("Unsupported Encoding while trying to get the bytes of %s using %s", mRequestBody, "utf-8");
-                        return null;
-                    }
-                }
-
-                @Override
-                protected Response<String> parseNetworkResponse(NetworkResponse response) {
-                    String responseString = "";
-                    if (response != null) {
-
-                        responseString = String.valueOf(response.statusCode);
-
-                    }
-                    return Response.success(responseString, HttpHeaderParser.parseCacheHeaders(response));
-                }
-            };
-
-            queue.add(stringRequest);
+            sendMessage(mRequestBody);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -306,6 +331,7 @@ public class BluetoothLeService extends Service {
             pullData = new SomeBackgroundProcess();
             pullData.start();
         }
+        connectWebSocket();
 
         queue = Volley.newRequestQueue(this);
         return true;
@@ -364,6 +390,7 @@ public class BluetoothLeService extends Service {
             pullData.stop();
             pullData = null;
         }
+        mWebSocketClient.close();
         if (mBluetoothAdapter == null || mBluetoothGatt == null) {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
@@ -381,6 +408,8 @@ public class BluetoothLeService extends Service {
             pullData.stop();
             pullData = null;
         }
+        mWebSocketClient.close();
+
         if (mBluetoothGatt == null) {
             return;
         }

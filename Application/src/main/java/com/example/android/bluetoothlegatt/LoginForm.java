@@ -21,21 +21,27 @@ import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+
 import android.support.v7.app.AppCompatActivity;
 
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
-public class LoginForm extends AppCompatActivity  {
+public class LoginForm extends AppCompatActivity {
     private final static String TAG = LoginForm.class.getSimpleName();
 
     private Button mLoginButton;
     private EditText mLoginEmail;
     private EditText mLoginPassword;
     private RequestQueue queue;
-    private  boolean mLoginSuccess;
+    private boolean mLoginSuccess;
+
 
 
     @Override
@@ -48,18 +54,18 @@ public class LoginForm extends AppCompatActivity  {
 
         queue = Volley.newRequestQueue(this);
 
-        mLoginEmail   = (EditText)findViewById(R.id.login_email);
-        mLoginPassword   = (EditText)findViewById(R.id.login_password);
+        mLoginEmail = (EditText) findViewById(R.id.login_email);
+        mLoginPassword = (EditText) findViewById(R.id.login_password);
 
         mLoginButton = (Button) findViewById(R.id.login_button);
         mLoginButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 mLoginSuccess = false;
-                Log.v(TAG,mLoginEmail.getText().toString());
+                Log.v(TAG, mLoginEmail.getText().toString());
                 try {
-                    String URL = Globals.SERVER_ADDRESS+"/login";
-                    Log.d(TAG,"Attempting to connect to " + URL);
+                    String URL = Globals.SERVER_ADDRESS + "/login";
+                    Log.d(TAG, "Attempting to connect to " + URL);
                     JSONObject jsonBody = new JSONObject();
                     jsonBody.put("u", mLoginEmail.getText().toString());
                     jsonBody.put("p", mLoginPassword.getText().toString());
@@ -72,7 +78,7 @@ public class LoginForm extends AppCompatActivity  {
                                 response = "Incorrect login";
                             } else {
                                 Intent intent = DeviceScanActivity.newIntent(LoginForm.this, mLoginEmail.getText().toString(), response);
-                                response = "Welcome " +  mLoginEmail.getText().toString();
+                                response = "Welcome " + mLoginEmail.getText().toString();
                                 startActivity(intent);
                             }
                             Toast.makeText(LoginForm.this, response, Toast.LENGTH_LONG).show();
@@ -105,7 +111,7 @@ public class LoginForm extends AppCompatActivity  {
                             String responseString = "";
                             try {
                                 JSONObject myObject = new JSONObject(new String(response.data));
-                                Log.d(TAG,myObject.toString());
+                                Log.d(TAG, myObject.toString());
                                 mLoginSuccess = ((boolean) myObject.get("success"));
                                 if (mLoginSuccess == true) {
                                     responseString = myObject.get("message").toString();
@@ -114,7 +120,7 @@ public class LoginForm extends AppCompatActivity  {
                                     Log.w(TAG, myObject.get("message").toString());
                                 }
                             } catch (Exception e) {
-                                Log.w(TAG,e.toString());
+                                Log.w(TAG, e.toString());
                             }
                             return Response.success(responseString, HttpHeaderParser.parseCacheHeaders(response));
                         }

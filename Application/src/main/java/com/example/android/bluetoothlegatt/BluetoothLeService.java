@@ -16,7 +16,11 @@
 
 package com.example.android.bluetoothlegatt;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.bluetooth.BluetoothClass;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -30,6 +34,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 
@@ -70,6 +75,11 @@ public class BluetoothLeService extends Service {
     private String mUsername;
     private String mAPIKey;
 
+    private boolean tryingToReconnectWebsockets = false;
+    private Object lock = new Object();
+
+    private PowerManager.WakeLock wakeLock = null;
+
     private static final int STATE_DISCONNECTED = 0;
     private static final int STATE_CONNECTING = 1;
     private static final int STATE_CONNECTED = 2;
@@ -87,18 +97,52 @@ public class BluetoothLeService extends Service {
 
     private Map<UUID, Integer> characteristicCurrentValues = new HashMap<UUID, Integer>();
 
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
+        Log.d(TAG, "onStartCommand");
+//        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
+//                .setSmallIcon(R.drawable.ic_bluetooth_connect)
+//                .setContentTitle("title")
+//                .setContentText("content")
+//                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+//
+//       PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
+//
+//        startForeground(1, mBuilder.build());
+        // We want this service to continue running until it is explicitly
+        // stopped, so return sticky.
+        return START_STICKY;
+    }
+
     // Websocket stuff
     private WebSocketClient mWebSocketClient;
 
     private void connectWebSocket() {
+        Log.v(TAG, "trying to connect websockets");
+        if (mWebSocketClient != null) {
+            if (mWebSocketClient.isClosed() == false) {
+                Log.v(TAG, "websockets already connected");
+                synchronized (lock) {
+                    tryingToReconnectWebsockets = false;
+                }
+                return;
+            }
+        }
         URI uri;
         try {
-            uri = new URI(Globals.WEBSOCKET_ADDRESS);
+            uri = new URI(Globals.WEBSOCKET_ADDRESS + "?apikey=" + mAPIKey);
         } catch (URISyntaxException e) {
+            Log.w(TAG, "Problem creating websockets  URI");
             e.printStackTrace();
+            synchronized (lock) {
+                tryingToReconnectWebsockets = false;
+            }
             return;
         }
 
+
+        Log.v(TAG, "creating new websockets ");
         mWebSocketClient = new WebSocketClient(uri) {
             @Override
             public void onMessage(String s) {
@@ -114,16 +158,16 @@ public class BluetoothLeService extends Service {
             @Override
             public void onClose(int i, String s, boolean b) {
                 Log.i("Websocket", "Closed " + s);
-                new java.util.Timer().schedule(
-                        new java.util.TimerTask() {
-                            @Override
-                            public void run() {
-                                // your code here
-                                connectWebSocket();
-                            }
-                        },
-                        5000
-                );
+//                new java.util.Timer().schedule(
+//                        new java.util.TimerTask() {
+//                            @Override
+//                            public void run() {
+//                                // your code here
+//                                connectWebSocket();
+//                            }
+//                        },
+//                        5000
+//                );
             }
 
             @Override
@@ -131,16 +175,35 @@ public class BluetoothLeService extends Service {
                 Log.i("Websocket", "Error " + e.getMessage());
             }
         };
+
+        Log.v(TAG, "websockets reconnecting");
         mWebSocketClient.connect();
+        synchronized (lock) {
+            tryingToReconnectWebsockets = false;
+        }
+        return;
     }
 
     public void sendMessage(String message) {
         try {
-            if (mWebSocketClient.isClosed() == false) {
-                mWebSocketClient.send(message);
-            }
+            Log.d(TAG,"websockets sending message");
+            mWebSocketClient.send(message);
         } catch (Exception e) {
-            Log.w(TAG,e.toString());
+            Log.w(TAG, "websockets problem sending message: " + e.toString());
+            synchronized (lock) {
+                if (tryingToReconnectWebsockets == false) {
+                    Log.v(TAG,"websockets trying to restart anew");
+                    tryingToReconnectWebsockets = true;
+                } else {
+                    Log.v(TAG,"websockets already trying to restart");
+                    return;
+                }
+                if (mWebSocketClient != null) {
+                    mWebSocketClient.close();
+                    mWebSocketClient = null;
+                }
+            }
+            connectWebSocket();
         }
     }
 
@@ -163,7 +226,6 @@ public class BluetoothLeService extends Service {
                     pullData = new SomeBackgroundProcess();
                     pullData.start();
                 }
-                connectWebSocket();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
@@ -193,7 +255,7 @@ public class BluetoothLeService extends Service {
         public void onCharacteristicRead(BluetoothGatt gatt,
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
-            Log.d(TAG,"onCharacteristicRead (" + Integer.toString(status) + ") " + characteristic.getUuid().toString());
+            Log.d(TAG, "onCharacteristicRead (" + Integer.toString(status) + ") " + characteristic.getUuid().toString());
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
             }
@@ -254,12 +316,11 @@ public class BluetoothLeService extends Service {
     public void sendData(final int sensorID, final int sensorValue) {
         try {
             JSONObject jsonBody = new JSONObject();
-            jsonBody.put("a", mAPIKey);
             jsonBody.put("s", sensorID); // sensor ID
             jsonBody.put("v", sensorValue);
             jsonBody.put("t", System.currentTimeMillis());
             final String mRequestBody = jsonBody.toString();
-            sendMessage(mRequestBody);
+                sendMessage(mRequestBody);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -314,8 +375,6 @@ public class BluetoothLeService extends Service {
             pullData = new SomeBackgroundProcess();
             pullData.start();
         }
-        connectWebSocket();
-
         return true;
     }
 
@@ -445,7 +504,7 @@ public class BluetoothLeService extends Service {
      * @return A {@code List} of supported services.
      */
     public List<BluetoothGattService> getSupportedGattServices() {
-        Log.d(TAG,"getSupportedGattServices()");
+        Log.d(TAG, "getSupportedGattServices()");
         if (mBluetoothGatt == null) return null;
         List<BluetoothGattService> gattServices = mBluetoothGatt.getServices();
 
@@ -500,10 +559,10 @@ public class BluetoothLeService extends Service {
                     // get the specified data
                     for (BluetoothGattCharacteristic gattCharacteristic : mGattCharacteristics) {
                         final long elapsedThreadMillis = SystemClock.currentThreadTimeMillis();
-                        Log.d(TAG,"Reading " + gattCharacteristic.getUuid().toString());
+                        Log.d(TAG, "Reading " + gattCharacteristic.getUuid().toString());
                         while (true) {
                             // wait
-                            if (SystemClock.currentThreadTimeMillis() - elapsedThreadMillis > 5000) {
+                            if (SystemClock.currentThreadTimeMillis() - elapsedThreadMillis > 2000) {
                                 synchronized ((Object) hasRead) {
                                     noReadings = noReadings + 1;
                                     hasRead = true;
@@ -515,9 +574,12 @@ public class BluetoothLeService extends Service {
                                 }
                             }
                         }
-                        Log.d(TAG,"noReadings: " + Integer.toString(noReadings));
+                        Log.d(TAG, "noReadings: " + Integer.toString(noReadings));
                         if (noReadings > 0) {
+                            mBluetoothManager = null;
+                            mBluetoothAdapter = null;
                             initialize();
+                            connect(mBluetoothDeviceAddress);
                             noReadings = 0;
                         }
                         Integer steps = Globals.de0gee_characteristic_steps.get(gattCharacteristic.getUuid());
@@ -526,13 +588,13 @@ public class BluetoothLeService extends Service {
                         }
                         if (count % steps == 0) {
                             try {
-                                Log.d(TAG,"attempting read of " + gattCharacteristic.getUuid().toString());
+                                Log.d(TAG, "["+mBluetoothDeviceAddress + "] attempting read of " + gattCharacteristic.getUuid().toString());
                                 synchronized ((Object) hasRead) {
                                     hasRead = false;
                                 }
                                 mBluetoothGatt.readCharacteristic(gattCharacteristic);
                             } catch (Exception e) {
-                                Log.d(TAG,"problem reading " + e.toString());
+                                Log.d(TAG, "problem reading " + e.toString());
                                 backgroundThread.interrupt();
                                 break;
                             }

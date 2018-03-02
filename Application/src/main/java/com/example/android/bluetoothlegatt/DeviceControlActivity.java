@@ -17,6 +17,10 @@
 package com.example.android.bluetoothlegatt;
 
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.PendingIntent;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
@@ -27,6 +31,8 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.PowerManager;
+import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -63,6 +69,9 @@ public class DeviceControlActivity extends AppCompatActivity {
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
 
+    // background manager
+    private PendingIntent recurringLl24 = null;
+    AlarmManager alarms = null;
 
     private TextView mConnectionState;
     private TextView mDataField;
@@ -90,7 +99,7 @@ public class DeviceControlActivity extends AppCompatActivity {
             }
             // Automatically connects to the device upon successful start-up initialization.
             mBluetoothLeService.connect(mDeviceAddress);
-            mBluetoothLeService.setUsernameAndPassword(mLoginEmail,mAPIKey);
+            mBluetoothLeService.setUsernameAndPassword(mLoginEmail, mAPIKey);
         }
 
         @Override
@@ -159,7 +168,7 @@ public class DeviceControlActivity extends AppCompatActivity {
                     }
                     return false;
                 }
-    };
+            };
 
     private void clearUI() {
         mGattServicesList.setAdapter((SimpleExpandableListAdapter) null);
@@ -177,34 +186,37 @@ public class DeviceControlActivity extends AppCompatActivity {
         mLoginEmail = intent.getStringExtra(LOGIN_EMAIL);
         mAPIKey = intent.getStringExtra(LOGIN_APIKEY);
 
+        // 24/7 alarm
+        Log.d(TAG,"creating alarm");
+        Intent ll24 = new Intent(this, AlarmReceiver.class);
+        recurringLl24 = PendingIntent.getBroadcast(this, 0, ll24, PendingIntent.FLAG_CANCEL_CURRENT);
+        alarms = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        alarms.setRepeating(AlarmManager.RTC_WAKEUP, SystemClock.currentThreadTimeMillis(),15000,recurringLl24);
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(DeviceControlActivity.this)
+                .setSmallIcon(R.mipmap.ic_launcher2_round)
+                .setContentTitle("de0gee")
+                .setContentText("Running in background, open up again to close.")
+                .setContentIntent(recurringLl24);
+        android.app.NotificationManager notificationManager =
+                (android.app.NotificationManager) DeviceControlActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
+
 
         // Sets up UI references.
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
-        ((TextView) findViewById(R.id.username)).setText(TextUtils.htmlEncode(Globals.SERVER_ADDRESS + "/realtime?apikey="+mAPIKey));
+        ((TextView) findViewById(R.id.username)).setText(TextUtils.htmlEncode(Globals.SERVER_ADDRESS + "/realtime?apikey=" + mAPIKey));
         mGattServicesList = (ExpandableListView) findViewById(R.id.gatt_services_list);
         mGattServicesList.setOnChildClickListener(servicesListClickListner);
         mConnectionState = (TextView) findViewById(R.id.connection_state);
         mDataField = (TextView) findViewById(R.id.data_value);
 
-//        // setup notification
-//        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this, "0")
-//                .setSmallIcon(R.drawable.ic_bluetooth_connect)
-//                .setContentTitle("My notification")
-//                .setContentText("Much longer text that cannot fit one line...")
-//                .setStyle(new NotificationCompat.BigTextStyle()
-//                        .bigText("Much longer text that cannot fit one line..."))
-//                .setPriority(NotificationCompat.PRIORITY_HIGH);
-//
-//        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
-//        // notificationId is a unique int for each notification that you must define
-//        notificationManager.notify(0, mBuilder.build());
-
-
         getSupportActionBar().setTitle(mDeviceName);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
+        startService(gattServiceIntent);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
     }
+
 
     @Override
     protected void onResume() {
@@ -225,8 +237,24 @@ public class DeviceControlActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        Log.d(TAG,"destroying alarm");
+        // stop background stuff
+        if (alarms != null) alarms.cancel(recurringLl24);
+        android.app.NotificationManager mNotificationManager = (android.app.NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.cancel(0);
+
         unbindService(mServiceConnection);
+        if (mBluetoothLeService != null) {
+            mBluetoothLeService.close();
+        }
         mBluetoothLeService = null;
+        try {
+            Intent scanService = new Intent(this, BluetoothLeService.class);
+            stopService(scanService);
+        } catch (Exception e) {
+            Log.w(TAG, e.toString());
+        }
     }
 
     @Override
@@ -244,7 +272,7 @@ public class DeviceControlActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch(item.getItemId()) {
+        switch (item.getItemId()) {
             case R.id.menu_connect:
                 mBluetoothLeService.connect(mDeviceAddress);
                 return true;
@@ -320,12 +348,12 @@ public class DeviceControlActivity extends AppCompatActivity {
                 this,
                 gattServiceData,
                 android.R.layout.simple_expandable_list_item_2,
-                new String[] {LIST_NAME, LIST_UUID},
-                new int[] { android.R.id.text1, android.R.id.text2 },
+                new String[]{LIST_NAME, LIST_UUID},
+                new int[]{android.R.id.text1, android.R.id.text2},
                 gattCharacteristicData,
                 android.R.layout.simple_expandable_list_item_2,
-                new String[] {LIST_NAME, LIST_UUID},
-                new int[] { android.R.id.text1, android.R.id.text2 }
+                new String[]{LIST_NAME, LIST_UUID},
+                new int[]{android.R.id.text1, android.R.id.text2}
         );
         mGattServicesList.setAdapter(gattServiceAdapter);
     }

@@ -1,10 +1,18 @@
 package com.example.android.bluetoothlegatt;
 
-import android.app.Activity;
+import android.Manifest;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.Looper;
+import android.os.PowerManager;
+import android.os.SystemClock;
+import android.support.v13.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -22,16 +30,10 @@ import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
-import android.support.v7.app.AppCompatActivity;
-
-import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 public class LoginForm extends AppCompatActivity {
     private final static String TAG = LoginForm.class.getSimpleName();
@@ -43,16 +45,33 @@ public class LoginForm extends AppCompatActivity {
     private boolean mLoginSuccess;
 
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login_form);
 
-        ActionBar ab = getSupportActionBar();
+        //request permissions
+        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+                Toast.makeText(this, "The permission to get BLE location data is required", Toast.LENGTH_SHORT).show();
+            } else {
+                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+            }
+        } else {
+            Toast.makeText(this, "Location permissions already granted", Toast.LENGTH_SHORT).show();
+        }
 
+        ActionBar ab = getSupportActionBar();
         queue = Volley.newRequestQueue(this);
+
+
+        Log.d(TAG,"creating alarm");
+        Intent ll24 = new Intent(this, AlarmReceiver.class);
+        PendingIntent recurringLl24 = PendingIntent.getBroadcast(this, 0, ll24, PendingIntent.FLAG_CANCEL_CURRENT);
+        AlarmManager alarms = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        alarms.setRepeating(AlarmManager.RTC_WAKEUP, SystemClock.currentThreadTimeMillis(),15000,recurringLl24);
 
         mLoginEmail = (EditText) findViewById(R.id.login_email);
         mLoginPassword = (EditText) findViewById(R.id.login_password);

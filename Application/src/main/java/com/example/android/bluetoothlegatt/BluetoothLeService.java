@@ -153,34 +153,30 @@ public class BluetoothLeService extends Service {
             public void onOpen(ServerHandshake serverHandshake) {
                 Log.i("Websocket", "Opened");
                 mWebSocketClient.send("Hello");
+                synchronized (lock) {
+                    tryingToReconnectWebsockets = false;
+                }
             }
 
             @Override
             public void onClose(int i, String s, boolean b) {
                 Log.i("Websocket", "Closed " + s);
-//                new java.util.Timer().schedule(
-//                        new java.util.TimerTask() {
-//                            @Override
-//                            public void run() {
-//                                // your code here
-//                                connectWebSocket();
-//                            }
-//                        },
-//                        5000
-//                );
+                synchronized (lock) {
+                    tryingToReconnectWebsockets = false;
+                }
             }
 
             @Override
             public void onError(Exception e) {
                 Log.i("Websocket", "Error " + e.getMessage());
+                synchronized (lock) {
+                    tryingToReconnectWebsockets = false;
+                }
             }
         };
 
         Log.v(TAG, "websockets reconnecting");
         mWebSocketClient.connect();
-        synchronized (lock) {
-            tryingToReconnectWebsockets = false;
-        }
         return;
     }
 

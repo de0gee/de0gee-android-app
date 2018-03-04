@@ -193,7 +193,7 @@ public class DeviceControlActivity extends AppCompatActivity {
         alarms = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         alarms.setRepeating(AlarmManager.RTC_WAKEUP, SystemClock.currentThreadTimeMillis(),15000,recurringLl24);
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(DeviceControlActivity.this)
-                .setSmallIcon(R.mipmap.ic_launcher2_round)
+                .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle("de0gee")
                 .setContentText("Running in background, open up again to close.")
                 .setContentIntent(recurringLl24);

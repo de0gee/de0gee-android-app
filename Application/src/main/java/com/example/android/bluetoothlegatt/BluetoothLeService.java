@@ -45,7 +45,9 @@ import org.json.JSONObject;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -182,16 +184,16 @@ public class BluetoothLeService extends Service {
 
     public void sendMessage(String message) {
         try {
-            Log.d(TAG,"websockets sending message");
+            Log.d(TAG, "websockets sending message");
             mWebSocketClient.send(message);
         } catch (Exception e) {
             Log.w(TAG, "websockets problem sending message: " + e.toString());
             synchronized (lock) {
                 if (tryingToReconnectWebsockets == false) {
-                    Log.v(TAG,"websockets trying to restart anew");
+                    Log.v(TAG, "websockets trying to restart anew");
                     tryingToReconnectWebsockets = true;
                 } else {
-                    Log.v(TAG,"websockets already trying to restart");
+                    Log.v(TAG, "websockets already trying to restart");
                     return;
                 }
                 if (mWebSocketClient != null) {
@@ -287,39 +289,55 @@ public class BluetoothLeService extends Service {
             return;
         }
 
-        final int sensorValue = characteristic.getIntValue(format, 0);
-
-        int lastSensor = -1;
-        try {
-            lastSensor = characteristicCurrentValues.get(characteristic.getUuid()).intValue();
-        } catch (Exception e) {
-            lastSensor = -1;
-            // do nothing
-        }
-        if (sensorValue == lastSensor) {
-            characteristicCurrentValues.put(characteristic.getUuid(), sensorValue);
-            sendData(id, sensorValue);
-        } else {
-            characteristicCurrentValues.put(characteristic.getUuid(), sensorValue);
-            sendData(id, sensorValue);
+        JSONObject sensors = new JSONObject();
+        if (format > -1) {
+            final int sensorValue = characteristic.getIntValue(format, 0);
+            try {
+                sensors.put(Integer.toString(id), sensorValue);
+            } catch (Exception e) {
+                Log.e(TAG, e.toString());
+                return;
+            }
             intent.putExtra(EXTRA_DATA, String.valueOf(sensorValue));
+        } else {
+            final byte[] b = characteristic.getValue();
+            Log.d(TAG,"bytes:"+b.toString() + ", length " + Integer.toString(b.length));
+            for (int i=1;i<=3;i++) {
+                ByteBuffer bb = null;
+                try {
+                    bb = ByteBuffer.wrap(Arrays.copyOfRange(b,i*2-2,i*2));
+                } catch (Exception e) {
+                    Log.e(TAG,"bytes: " + e.toString());
+                    return;
+                }
+                final int val = bb.order(java.nio.ByteOrder.LITTLE_ENDIAN).getShort();
+                Log.d(TAG,"bytes:"+b.toString() + " -> int " + Integer.toString(val));
+                try {
+                    sensors.put(Integer.toString(id+i-1), val);
+                } catch (Exception e) {
+                    Log.e(TAG, e.toString());
+                    return;
+                }
+            }
         }
+
+        JSONObject jsonBody = new JSONObject();
+        try {
+            jsonBody.put("s", sensors); // sensor ID
+            jsonBody.put("t", System.currentTimeMillis());
+        } catch (Exception e) {
+            Log.e(TAG, e.toString());
+            return;
+        }
+        sendData(jsonBody);
 
         pullData.didRead();
         sendBroadcast(intent);
     }
 
-    public void sendData(final int sensorID, final int sensorValue) {
-        try {
-            JSONObject jsonBody = new JSONObject();
-            jsonBody.put("s", sensorID); // sensor ID
-            jsonBody.put("v", sensorValue);
-            jsonBody.put("t", System.currentTimeMillis());
-            final String mRequestBody = jsonBody.toString();
-                sendMessage(mRequestBody);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+    public void sendData(final JSONObject jsonBody) {
+        final String mRequestBody = jsonBody.toString();
+        sendMessage(mRequestBody);
     }
 
 
@@ -584,7 +602,7 @@ public class BluetoothLeService extends Service {
                         }
                         if (count % steps == 0) {
                             try {
-                                Log.d(TAG, "["+mBluetoothDeviceAddress + "] attempting read of " + gattCharacteristic.getUuid().toString());
+                                Log.d(TAG, "[" + mBluetoothDeviceAddress + "] attempting read of " + gattCharacteristic.getUuid().toString());
                                 synchronized ((Object) hasRead) {
                                     hasRead = false;
                                 }

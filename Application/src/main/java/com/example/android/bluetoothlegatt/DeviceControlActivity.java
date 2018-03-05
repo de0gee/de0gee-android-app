@@ -192,11 +192,26 @@ public class DeviceControlActivity extends AppCompatActivity {
         recurringLl24 = PendingIntent.getBroadcast(this, 0, ll24, PendingIntent.FLAG_CANCEL_CURRENT);
         alarms = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         alarms.setRepeating(AlarmManager.RTC_WAKEUP, SystemClock.currentThreadTimeMillis(),15000,recurringLl24);
+//        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(DeviceControlActivity.this)
+//                .setSmallIcon(R.mipmap.ic_launcher)
+//                .setContentTitle("de0gee")
+//                .setContentText("Running in background, open up again to close.")
+//                .setContentIntent(recurringLl24);
+//        android.app.NotificationManager notificationManager =
+//                (android.app.NotificationManager) DeviceControlActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);
+//        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
+
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(DeviceControlActivity.this)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_stat_name)
                 .setContentTitle("de0gee")
-                .setContentText("Running in background, open up again to close.")
                 .setContentIntent(recurringLl24);
+        //specifying an action and its category to be triggered once clicked on the notification
+        Intent resultIntent = new Intent(DeviceControlActivity.this, DeviceControlActivity.class);
+        resultIntent.setAction("android.intent.action.MAIN");
+        resultIntent.addCategory("android.intent.category.LAUNCHER");
+        PendingIntent resultPendingIntent = PendingIntent.getActivity(DeviceControlActivity.this, 0, resultIntent, PendingIntent.FLAG_NO_CREATE);
+        notificationBuilder.setContentIntent(resultPendingIntent);
+
         android.app.NotificationManager notificationManager =
                 (android.app.NotificationManager) DeviceControlActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());

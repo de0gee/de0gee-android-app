@@ -203,14 +203,14 @@ public class DeviceControlActivity extends AppCompatActivity {
 
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(DeviceControlActivity.this)
                 .setSmallIcon(R.drawable.ic_stat_name)
-                .setContentTitle("de0gee")
+                .setContentTitle("de0gee sensor is running")
                 .setContentIntent(recurringLl24);
         //specifying an action and its category to be triggered once clicked on the notification
-        Intent resultIntent = new Intent(DeviceControlActivity.this, DeviceControlActivity.class);
-        resultIntent.setAction("android.intent.action.MAIN");
-        resultIntent.addCategory("android.intent.category.LAUNCHER");
-        PendingIntent resultPendingIntent = PendingIntent.getActivity(DeviceControlActivity.this, 0, resultIntent, PendingIntent.FLAG_NO_CREATE);
-        notificationBuilder.setContentIntent(resultPendingIntent);
+//        Intent resultIntent = new Intent(DeviceControlActivity.this, DeviceControlActivity.class);
+//        resultIntent.setAction("android.intent.action.MAIN");
+//        resultIntent.addCategory("android.intent.category.LAUNCHER");
+//        PendingIntent resultPendingIntent = PendingIntent.getActivity(DeviceControlActivity.this, 0, resultIntent, PendingIntent.);
+//        notificationBuilder.setContentIntent(resultPendingIntent);
 
         android.app.NotificationManager notificationManager =
                 (android.app.NotificationManager) DeviceControlActivity.this.getSystemService(Context.NOTIFICATION_SERVICE);

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.android.bluetoothlegatt;
+package com.de0gee.android.bluesense;
 
 import android.app.Notification;
 import android.app.PendingIntent;

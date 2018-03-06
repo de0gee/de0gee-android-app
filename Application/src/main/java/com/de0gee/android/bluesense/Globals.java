@@ -1,4 +1,4 @@
-package com.example.android.bluetoothlegatt;
+package com.de0gee.android.bluesense;
 
 /**
  * Created by zacks on 2/28/2018.

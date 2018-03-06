@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.android.bluetoothlegatt;
+package com.de0gee.android.bluesense;
 
 import android.app.Activity;
 import android.app.ListActivity;
@@ -45,8 +45,8 @@ import java.util.ArrayList;
 public class DeviceScanActivity extends ListActivity {
 
     // intents from the login form
-    private static final String LOGIN_EMAIL = "com.example.android.bluetoothlegatt.login_email";
-    private static final String LOGIN_APIKEY = "com.example.android.bluetoothlegatt.login_apikey";
+    private static final String LOGIN_EMAIL = "com.de0gee.android.bluesense.login_email";
+    private static final String LOGIN_APIKEY = "com.de0gee.android.bluesense.login_apikey";
     private String mLoginEmail;
     private String mAPIKey;
 

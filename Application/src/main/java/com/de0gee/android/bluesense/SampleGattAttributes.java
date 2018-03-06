@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.android.bluetoothlegatt;
+package com.de0gee.android.bluesense;
 
 import java.util.HashMap;
 

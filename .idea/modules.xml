@@ -3,8 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Application/Application.iml" filepath="$PROJECT_DIR$/Application/Application.iml" />
-      <module fileurl="file://C:\Users\zacks\Documents\de0gee-android-app\app2.iml" filepath="C:\Users\zacks\Documents\de0gee-android-app\app2.iml" />
-      <module fileurl="file://$PROJECT_DIR$/de0gee-android-app.iml" filepath="$PROJECT_DIR$/de0gee-android-app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/app4.iml" filepath="$PROJECT_DIR$/app4.iml" />
       <module fileurl="file://$PROJECT_DIR$/volley/volley.iml" filepath="$PROJECT_DIR$/volley/volley.iml" />
     </modules>
   </component>

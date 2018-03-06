@@ -1,4 +1,4 @@
-package com.example.android.bluetoothlegatt;
+package com.de0gee.android.bluesense;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
